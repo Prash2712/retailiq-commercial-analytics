@@ -10,7 +10,10 @@ import pytest
 from retailiq.warehouse import build_warehouse
 
 TEST_DB_URL = os.getenv("RETAILIQ_TEST_DB_URL")
-pytestmark = pytest.mark.skipif(not TEST_DB_URL, reason="PostgreSQL integration database not configured")
+pytestmark = pytest.mark.skipif(
+    not TEST_DB_URL,
+    reason="PostgreSQL integration database not configured",
+)
 
 
 def synthetic_transactions() -> pd.DataFrame:
@@ -21,7 +24,14 @@ def synthetic_transactions() -> pd.DataFrame:
             "source_row_number": [2, 3, 4, 5, 6, 7],
             "invoice_no": ["100001", "100002", "100003", "100003", "C100004", "100005"],
             "stock_code": ["A", "B", "A", "A", "A", "FREE"],
-            "description": ["Product A", "Product B", "Product A", "Product A", "Product A", "Sample"],
+            "description": [
+                "Product A",
+                "Product B",
+                "Product A",
+                "Product A",
+                "Product A",
+                "Sample",
+            ],
             "quantity": [2, 1, 3, 3, -1, 1],
             "invoice_date": [timestamp] * 6,
             "unit_price": [10.0, 5.0, 10.0, 10.0, 10.0, 0.0],
