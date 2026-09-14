@@ -2,11 +2,8 @@ name: Full data audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [feat/full-data-audit]
-    paths:
-      - ".github/workflows/full-data-audit.yml"
-      - "scripts/print_verified_metrics.py"
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
