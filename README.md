@@ -1,104 +1,229 @@
 # RetailIQ — Commercial Analytics & Executive BI Platform
 
-RetailIQ is an end-to-end analytics engineering and business-intelligence portfolio project built on **real UK retail transaction data**. The objective is to turn a messy transactional source into a governed analytical model and decision-ready commercial reporting layer.
+[![CI](https://github.com/Prash2712/retailiq-commercial-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/Prash2712/retailiq-commercial-analytics/actions/workflows/ci.yml)
 
-> **Status:** Foundation in progress
+RetailIQ is an end-to-end commercial analytics project built on **1,067,371 real UK retail transaction lines** from the UCI Online Retail II dataset. It is designed to show the work behind a trustworthy management dashboard: source ingestion, data-quality controls, dimensional modelling, SQL business logic, customer analytics and Power BI reporting.
 
-## Business problem
+> **Project status:** Milestone 1 — reproducible data foundation. Warehouse, marts and BI layers are the next milestones.
 
-Commercial leaders need a trusted view of:
+## 60-second review
 
-- net revenue and order trends
-- average order value and units per order
-- customer acquisition and repeat purchasing
-- cohort retention and customer lifecycle
-- product concentration and top/bottom performers
-- cancellations and return-value exposure
-- geographic revenue mix
-- data-quality exceptions that can distort reporting
+| Area | Evidence in this repository |
+|---|---|
+| Python | Reproducible source ingestion, schema validation, type normalisation and quality profiling |
+| SQL / data modelling | PostgreSQL staging, star schema and commercial marts — next milestone |
+| Power BI | Executive semantic model, DAX catalogue and dashboard — later milestone |
+| Data quality | Explicit exception counts for missing fields, duplicates, cancellations and non-positive values |
+| Reproducibility | UCI download path, SHA-256 source fingerprints, deterministic transforms, tests and CI |
+| Business analysis | Version-controlled KPI definitions; no unsupported profit/margin assumptions |
 
-RetailIQ is designed as if an analyst were responsible for taking this from raw source data through validation, modelling, SQL analytics and an executive Power BI semantic layer.
+## Business question
+
+A commercial team needs a reliable answer to five recurring questions:
+
+1. How are sales, orders and average order value changing over time?
+2. Which customers return, and how does retention differ by acquisition cohort?
+3. Which products and countries drive sales concentration?
+4. What is the scale and pattern of cancellations/returns?
+5. Which data-quality issues could materially distort management reporting?
+
+RetailIQ builds the analytical system required to answer those questions rather than beginning with a dashboard and working backwards.
 
 ## Data source
 
-The project uses **Online Retail II** from the UCI Machine Learning Repository (Daqing Chen). It contains transactions for a UK-based registered non-store retailer from **1 December 2009 to 9 December 2011**.
+**Online Retail II**, donated by Daqing Chen to the UCI Machine Learning Repository.
 
-- ~1.07 million transaction lines
-- invoice, product, quantity, timestamp, unit price, customer and country fields
-- cancellation invoices identified by invoice numbers beginning with `C`
-- missing values and real-world data-quality issues
-- source license: **CC BY 4.0**
-- DOI: `10.24432/C5CG6D`
+- **Rows:** 1,067,371 transaction lines
+- **Period:** 1 December 2009 to 9 December 2011
+- **Business:** UK-based registered non-store retailer
+- **Fields:** invoice, product, quantity, date/time, unit price, customer and country
+- **Known issues:** missing values, cancellations, negative quantities and duplicate-looking records
+- **DOI:** `10.24432/C5CG6D`
+- **Licence:** CC BY 4.0
 
-Raw source files are **not committed** to this repository. The ingestion pipeline downloads them from UCI and records provenance.
+The source contains **sales prices, not product costs**. RetailIQ therefore does not manufacture profit, margin, CAC or ROI metrics that cannot be supported by the data.
 
-## Target architecture
+## Architecture
 
 ```text
 UCI Online Retail II
         |
         v
-Python ingestion + provenance
+Python ingestion
+(download + SHA-256 provenance)
+        |
+        +------------------> raw source (immutable, gitignored)
         |
         v
-Raw / staging layer
+Typed normalised Parquet
+(row-preserving + source-sheet lineage)
         |
         v
-Data-quality rules + cleaning
+Data-quality profiling
         |
         v
-PostgreSQL analytical warehouse
-        |
-        +--> dimensional/star model
-        |
-        v
-SQL commercial marts
+PostgreSQL
+staging -> dimensions/facts -> commercial marts
         |
         v
-Power BI semantic model + DAX
+Power BI semantic model
         |
         v
-Executive dashboard + insight memo
+Executive dashboard + commercial insight memo
 ```
 
-The warehouse and semantic model follow dimensional modelling principles: dimensions support filtering/grouping and fact tables retain a consistent analytical grain.
+A fuller rationale is in [`docs/architecture.md`](docs/architecture.md).
 
-## Planned analytical outputs
+## What is implemented now
 
-1. **Executive scorecard** — revenue, orders, AOV, units, customers, cancellations
-2. **Customer analytics** — repeat rate, cohort retention, RFM/lifecycle segmentation
-3. **Product analytics** — revenue concentration, quantity, cancellation exposure
-4. **Geographic analytics** — country contribution and customer mix
-5. **Data-quality dashboard** — missing IDs, cancellations, invalid prices/quantities, duplicates
-6. **Commercial insight memo** — concise evidence-led recommendations for management
+The first milestone establishes the part of the system on which every later metric depends:
 
-## Engineering standards
+- downloads the official UCI source archive
+- preserves the raw source outside Git
+- calculates SHA-256 fingerprints for the archive and workbook
+- records provenance metadata locally
+- reads every workbook sheet
+- validates the expected source schema
+- normalises legacy column names and data types
+- preserves workbook-sheet lineage
+- derives an explicit cancellation flag
+- writes a typed Parquet hand-off layer
+- profiles missing values, duplicates, non-positive values and cancellation rows
+- tests schema drift and important transformation behaviour
+- runs linting and tests in GitHub Actions
 
-- reproducible ingestion; no raw data committed
-- explicit source attribution and data provenance
-- deterministic transformation rules
-- tested data-quality logic
-- SQL kept reviewable and version controlled
-- CI on pull requests
-- no fabricated business metrics or fake client claims
-- documented assumptions and limitations
+## Quick start
 
-## Repository roadmap
+### Requirements
 
-- [ ] Foundation, source contract and CI
-- [ ] Raw-to-clean Python pipeline
-- [ ] PostgreSQL warehouse + star schema
-- [ ] SQL commercial marts and validation checks
-- [ ] Customer cohort / RFM analytics
-- [ ] Power BI semantic model and DAX measure catalogue
-- [ ] Executive dashboard screenshots
-- [ ] Final commercial insight memo
-- [ ] Reproducibility and portfolio close-out
+- Python 3.11+
+- Git
 
-## Why this project exists
+PostgreSQL and Power BI are **not required for Milestone 1**; they are introduced in the warehouse/BI milestones.
 
-The aim is not to demonstrate another notebook. RetailIQ is intended to show the full analyst workflow: **source understanding → data quality → SQL modelling → KPI definition → BI → commercial interpretation**.
+### Setup
+
+```bash
+git clone https://github.com/Prash2712/retailiq-commercial-analytics.git
+cd retailiq-commercial-analytics
+python -m venv .venv
+```
+
+Activate the environment, then install:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+### Run quality checks
+
+```bash
+make lint
+make test
+```
+
+### Download and normalise the source data
+
+```bash
+make ingest
+```
+
+This creates local, gitignored artifacts under `data/raw/` and `data/interim/` and records source hashes in `data/raw/provenance.json`.
+
+### Profile the normalised data
+
+```bash
+make profile
+```
+
+No raw dataset is committed to the repository.
+
+## Repository structure
+
+```text
+.
+├── .github/workflows/      # CI
+├── data/                    # local generated data; raw/interim/processed are gitignored
+├── docs/
+│   ├── architecture.md      # design decisions and system boundary
+│   ├── data_contract.md     # grain, fields, risks and quality contract
+│   └── kpi_dictionary.md    # commercial metric definitions and guardrails
+├── src/retailiq/
+│   ├── cli.py               # command-line entry point
+│   ├── config.py            # source and project paths
+│   ├── ingest.py            # download, provenance and normalisation
+│   └── quality.py           # quality profiling
+├── tests/                   # transformation and quality tests
+├── Makefile
+└── pyproject.toml
+```
+
+## KPI design
+
+Commercial definitions are treated as code-adjacent assets rather than labels added inside a dashboard. The current KPI contract includes:
+
+- gross sales value
+- cancellation value
+- net sales value
+- orders
+- average order value
+- units sold
+- active customers
+- repeat-customer rate
+- cohort retention
+- RFM measures
+- product sales concentration
+- geographic contribution
+
+The definitions and limitations are maintained in [`docs/kpi_dictionary.md`](docs/kpi_dictionary.md).
+
+## Data-quality policy
+
+RetailIQ separates **observed source issues** from **business-rule exclusions**. For example, a negative quantity is not silently deleted simply because it complicates a sales measure.
+
+The profiling layer records:
+
+- exact duplicates
+- missing invoice numbers
+- missing product codes/descriptions
+- missing customer IDs
+- missing invoice timestamps
+- non-positive quantities
+- non-positive unit prices
+- cancellation rows
+
+See [`docs/data_contract.md`](docs/data_contract.md) for the current contract and interpretation risks.
+
+## Delivery roadmap
+
+- [x] Project charter and data-source selection
+- [x] Reproducible ingestion foundation
+- [x] Source provenance and schema contract
+- [x] Baseline data-quality profiling and tests
+- [x] Pull-request CI
+- [ ] PostgreSQL staging layer
+- [ ] Dimensional/star schema
+- [ ] Reconciliation checks and commercial SQL marts
+- [ ] Cohort retention and RFM analysis
+- [ ] Power BI semantic model and DAX catalogue
+- [ ] Executive dashboard
+- [ ] Evidence-led commercial insight memo
+- [ ] Final reproducibility audit and release
+
+## Project standards
+
+This repository follows four constraints throughout development:
+
+1. **No fabricated impact.** Results and CV claims must be reproducible from committed code and documented data.
+2. **No hidden cleaning.** Exclusion logic must be named, reviewable and reconciled.
+3. **No metric theatre.** Metrics unsupported by the source are not invented.
+4. **No notebook-only delivery.** The final analytical workflow must be runnable, tested and documented outside exploratory notebooks.
 
 ## Attribution
 
-Dataset: Chen, D. *Online Retail II*. UCI Machine Learning Repository. DOI: 10.24432/C5CG6D. Licensed under CC BY 4.0.
+Chen, D. (2012). *Online Retail II* [Dataset]. UCI Machine Learning Repository. DOI: `10.24432/C5CG6D`. Licensed under CC BY 4.0.
+
+## Licence
+
+Project code and documentation are released under the MIT Licence. Dataset usage remains subject to the source dataset's CC BY 4.0 terms.
