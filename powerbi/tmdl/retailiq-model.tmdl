@@ -1,0 +1,588 @@
+createOrReplace
+
+  model Model
+    culture: en-GB
+    defaultPowerBIDataSourceVersion: powerBI_V3
+    sourceQueryCulture: en-GB
+
+    expression PBI_Server = "localhost" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+    expression PBI_Database = "retailiq" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+    table Date
+      column 'Date Key'
+        dataType: int64
+        isHidden
+        sourceColumn: date_key
+        summarizeBy: none
+
+      column Date
+        dataType: dateTime
+        sourceColumn: full_date
+        summarizeBy: none
+        formatString: dd MMM yyyy
+
+      column Year
+        dataType: int64
+        sourceColumn: calendar_year
+        summarizeBy: none
+
+      column Quarter
+        dataType: int64
+        sourceColumn: calendar_quarter
+        summarizeBy: none
+
+      column 'Month Number'
+        dataType: int64
+        isHidden
+        sourceColumn: calendar_month
+        summarizeBy: none
+
+      column Month
+        dataType: string
+        sourceColumn: month_name
+        summarizeBy: none
+
+      column 'Year Month'
+        dataType: string
+        sourceColumn: year_month
+        summarizeBy: none
+
+      column 'ISO Week'
+        dataType: int64
+        sourceColumn: iso_week
+        summarizeBy: none
+
+      column 'Day Name'
+        dataType: string
+        sourceColumn: day_name
+        summarizeBy: none
+
+      column 'Is Weekend'
+        dataType: boolean
+        sourceColumn: is_weekend
+        summarizeBy: none
+
+      partition Date = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT date_key, full_date, calendar_year, calendar_quarter, calendar_month, month_name, year_month, iso_week, day_name, is_weekend FROM core.dim_date"])
+          in
+              Source
+
+    table Customer
+      column 'Customer Key'
+        dataType: int64
+        isHidden
+        sourceColumn: customer_key
+        summarizeBy: none
+
+      column 'Customer ID'
+        dataType: string
+        sourceColumn: customer_id
+        summarizeBy: none
+
+      partition Customer = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT customer_key, customer_id FROM core.dim_customer"])
+          in
+              Source
+
+    table Product
+      column 'Product Key'
+        dataType: int64
+        isHidden
+        sourceColumn: product_key
+        summarizeBy: none
+
+      column 'Stock Code'
+        dataType: string
+        sourceColumn: stock_code
+        summarizeBy: none
+
+      column 'Product Description'
+        dataType: string
+        sourceColumn: product_description
+        summarizeBy: none
+
+      partition Product = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT product_key, stock_code, product_description FROM core.dim_product"])
+          in
+              Source
+
+    table Geography
+      column 'Geography Key'
+        dataType: int64
+        isHidden
+        sourceColumn: geography_key
+        summarizeBy: none
+
+      column Country
+        dataType: string
+        sourceColumn: country
+        summarizeBy: none
+
+      partition Geography = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT geography_key, country FROM core.dim_geography"])
+          in
+              Source
+
+    table 'Fact Transactions'
+      measure 'Gross Sales Value' =
+          CALCULATE(
+              SUM('Fact Transactions'[Line Value]),
+              'Fact Transactions'[Event Type] = "sale"
+          )
+        formatString: £#,##0.00
+        displayFolder: Commercial
+
+      measure 'Cancellation Value' =
+          CALCULATE(
+              SUMX('Fact Transactions', ABS('Fact Transactions'[Line Value])),
+              'Fact Transactions'[Event Type] = "cancellation"
+          )
+        formatString: £#,##0.00
+        displayFolder: Commercial
+
+      measure 'Net Sales Value' = [Gross Sales Value] - [Cancellation Value]
+        formatString: £#,##0.00
+        displayFolder: Commercial
+
+      measure 'Sale Orders' =
+          CALCULATE(
+              DISTINCTCOUNT('Fact Transactions'[Invoice No]),
+              'Fact Transactions'[Event Type] = "sale"
+          )
+        formatString: #,##0
+        displayFolder: Commercial
+
+      measure 'Cancellation Orders' =
+          CALCULATE(
+              DISTINCTCOUNT('Fact Transactions'[Invoice No]),
+              'Fact Transactions'[Event Type] = "cancellation"
+          )
+        formatString: #,##0
+        displayFolder: Commercial
+
+      measure 'Average Order Value' = DIVIDE([Net Sales Value], [Sale Orders])
+        formatString: £#,##0.00
+        displayFolder: Commercial
+
+      measure 'Units Sold' =
+          CALCULATE(
+              SUM('Fact Transactions'[Quantity]),
+              'Fact Transactions'[Event Type] = "sale"
+          )
+        formatString: #,##0
+        displayFolder: Commercial
+
+      measure 'Known Customers' =
+          CALCULATE(
+              DISTINCTCOUNT('Fact Transactions'[Customer Key]),
+              'Fact Transactions'[Event Type] = "sale",
+              'Fact Transactions'[Customer Key] <> BLANK()
+          )
+        formatString: #,##0
+        displayFolder: Customer
+
+      measure 'Cancellation Value %' = DIVIDE([Cancellation Value], [Gross Sales Value])
+        formatString: 0.00%
+        displayFolder: Commercial
+
+      measure 'Repeat Customers' =
+          CALCULATE(
+              COUNTROWS('Customer Summary'),
+              'Customer Summary'[Is Repeat Customer] = TRUE()
+          )
+        formatString: #,##0
+        displayFolder: Customer
+
+      measure 'Identifiable Purchasing Customers' = COUNTROWS('Customer Summary')
+        formatString: #,##0
+        displayFolder: Customer
+
+      measure 'Repeat Customer Rate' = DIVIDE([Repeat Customers], [Identifiable Purchasing Customers])
+        formatString: 0.00%
+        displayFolder: Customer
+
+      measure 'Prior Year Net Sales' =
+          CALCULATE(
+              [Net Sales Value],
+              DATEADD('Date'[Date], -1, YEAR)
+          )
+        formatString: £#,##0.00
+        displayFolder: Time Intelligence
+
+      measure 'Net Sales YoY %' =
+          DIVIDE(
+              [Net Sales Value] - [Prior Year Net Sales],
+              [Prior Year Net Sales]
+          )
+        formatString: 0.00%
+        displayFolder: Time Intelligence
+
+      measure 'Net Sales YTD' = TOTALYTD([Net Sales Value], 'Date'[Date])
+        formatString: £#,##0.00
+        displayFolder: Time Intelligence
+
+      measure 'Top 10 Product Net Sales' =
+          SUMX(
+              TOPN(
+                  10,
+                  ALLSELECTED('Product'[Stock Code]),
+                  [Net Sales Value],
+                  DESC
+              ),
+              [Net Sales Value]
+          )
+        formatString: £#,##0.00
+        displayFolder: Concentration
+
+      measure 'Top 10 Product Share' = DIVIDE([Top 10 Product Net Sales], [Net Sales Value])
+        formatString: 0.00%
+        displayFolder: Concentration
+
+      measure 'Repeated Exact Rows' =
+          CALCULATE(
+              COUNTROWS('Fact Transactions'),
+              'Fact Transactions'[Is Repeated Exact Row] = TRUE()
+          )
+        formatString: #,##0
+        displayFolder: Data Quality
+
+      measure 'Missing Customer ID Rows' =
+          CALCULATE(
+              MAX('Data Quality'[Value]),
+              'Data Quality'[Metric] = "missing_customer_id"
+          )
+        formatString: #,##0
+        displayFolder: Data Quality
+
+      measure 'Fact Row Count' = COUNTROWS('Fact Transactions')
+        formatString: #,##0
+        displayFolder: Data Quality
+
+      column 'Transaction Line Key'
+        dataType: int64
+        isHidden
+        sourceColumn: transaction_line_key
+        summarizeBy: none
+
+      column 'Invoice No'
+        dataType: string
+        sourceColumn: invoice_no
+        summarizeBy: none
+
+      column 'Invoice Timestamp'
+        dataType: dateTime
+        sourceColumn: invoice_timestamp
+        summarizeBy: none
+
+      column 'Date Key'
+        dataType: int64
+        isHidden
+        sourceColumn: date_key
+        summarizeBy: none
+
+      column 'Customer Key'
+        dataType: int64
+        isHidden
+        sourceColumn: customer_key
+        summarizeBy: none
+
+      column 'Product Key'
+        dataType: int64
+        isHidden
+        sourceColumn: product_key
+        summarizeBy: none
+
+      column 'Geography Key'
+        dataType: int64
+        isHidden
+        sourceColumn: geography_key
+        summarizeBy: none
+
+      column Quantity
+        dataType: double
+        sourceColumn: quantity
+        summarizeBy: sum
+
+      column 'Unit Price'
+        dataType: decimal
+        sourceColumn: unit_price
+        summarizeBy: none
+        formatString: £#,##0.0000
+
+      column 'Line Value'
+        dataType: decimal
+        sourceColumn: line_value
+        summarizeBy: sum
+        formatString: £#,##0.0000
+
+      column 'Event Type'
+        dataType: string
+        sourceColumn: event_type
+        summarizeBy: none
+
+      column 'Is Cancellation'
+        dataType: boolean
+        sourceColumn: is_cancellation
+        summarizeBy: none
+
+      column 'Exact Row Occurrence'
+        dataType: int64
+        isHidden
+        sourceColumn: exact_row_occurrence
+        summarizeBy: none
+
+      column 'Is Repeated Exact Row'
+        dataType: boolean
+        sourceColumn: is_repeated_exact_row
+        summarizeBy: none
+
+      partition 'Fact Transactions' = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT transaction_line_key, invoice_no, invoice_timestamp, date_key, customer_key, product_key, geography_key, quantity, unit_price, line_value, event_type, is_cancellation, exact_row_occurrence, is_repeated_exact_row FROM core.fact_transaction_line"])
+          in
+              Source
+
+    table 'Customer Summary'
+      column 'Customer ID'
+        dataType: string
+        sourceColumn: customer_id
+        summarizeBy: none
+
+      column 'First Purchase Date'
+        dataType: dateTime
+        sourceColumn: first_purchase_date
+        summarizeBy: none
+
+      column 'Last Purchase Date'
+        dataType: dateTime
+        sourceColumn: last_purchase_date
+        summarizeBy: none
+
+      column 'Order Count'
+        dataType: int64
+        sourceColumn: order_count
+        summarizeBy: sum
+
+      column 'Units Purchased'
+        dataType: double
+        sourceColumn: units_purchased
+        summarizeBy: sum
+
+      column 'Gross Sales Value'
+        dataType: decimal
+        sourceColumn: gross_sales_value
+        summarizeBy: sum
+        formatString: £#,##0.00
+
+      column 'Cancellation Value'
+        dataType: decimal
+        sourceColumn: cancellation_value
+        summarizeBy: sum
+        formatString: £#,##0.00
+
+      column 'Net Sales Value'
+        dataType: decimal
+        sourceColumn: net_sales_value
+        summarizeBy: sum
+        formatString: £#,##0.00
+
+      column 'Recency Days'
+        dataType: int64
+        sourceColumn: recency_days
+        summarizeBy: none
+
+      column 'Is Repeat Customer'
+        dataType: boolean
+        sourceColumn: is_repeat_customer
+        summarizeBy: none
+
+      partition 'Customer Summary' = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT * FROM mart.customer_summary"])
+          in
+              Source
+
+    table 'Customer RFM'
+      column 'Customer ID'
+        dataType: string
+        sourceColumn: customer_id
+        summarizeBy: none
+
+      column 'Recency Days'
+        dataType: int64
+        sourceColumn: recency_days
+        summarizeBy: none
+
+      column Frequency
+        dataType: int64
+        sourceColumn: frequency
+        summarizeBy: none
+
+      column 'Monetary Value'
+        dataType: decimal
+        sourceColumn: monetary_value
+        summarizeBy: sum
+        formatString: £#,##0.00
+
+      column 'Recency Score'
+        dataType: int64
+        sourceColumn: recency_score
+        summarizeBy: none
+
+      column 'Frequency Score'
+        dataType: int64
+        sourceColumn: frequency_score
+        summarizeBy: none
+
+      column 'Monetary Score'
+        dataType: int64
+        sourceColumn: monetary_score
+        summarizeBy: none
+
+      column 'RFM Score'
+        dataType: string
+        sourceColumn: rfm_score
+        summarizeBy: none
+
+      partition 'Customer RFM' = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT * FROM mart.customer_rfm"])
+          in
+              Source
+
+    table 'Cohort Retention'
+      column 'Cohort Month'
+        dataType: dateTime
+        sourceColumn: cohort_month
+        summarizeBy: none
+
+      column 'Activity Month'
+        dataType: dateTime
+        sourceColumn: activity_month
+        summarizeBy: none
+
+      column 'Months Since First Purchase'
+        dataType: int64
+        sourceColumn: months_since_first_purchase
+        summarizeBy: none
+
+      column 'Cohort Customers'
+        dataType: int64
+        sourceColumn: cohort_customers
+        summarizeBy: sum
+
+      column 'Active Customers'
+        dataType: int64
+        sourceColumn: active_customers
+        summarizeBy: sum
+
+      column 'Retention Rate'
+        dataType: decimal
+        sourceColumn: retention_rate
+        summarizeBy: none
+        formatString: 0.00%
+
+      partition 'Cohort Retention' = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT * FROM mart.customer_cohort_retention"])
+          in
+              Source
+
+    table 'Data Quality'
+      column Metric
+        dataType: string
+        sourceColumn: metric
+        summarizeBy: none
+
+      column Value
+        dataType: decimal
+        sourceColumn: value
+        summarizeBy: sum
+        formatString: #,##0
+
+      partition 'Data Quality' = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT * FROM mart.data_quality_summary"])
+          in
+              Source
+
+    table Reconciliation
+      column 'Staging Row Count'
+        dataType: int64
+        sourceColumn: staging_row_count
+        summarizeBy: none
+
+      column 'Fact Row Count'
+        dataType: int64
+        sourceColumn: fact_row_count
+        summarizeBy: none
+
+      column 'Row Count Difference'
+        dataType: int64
+        sourceColumn: row_count_difference
+        summarizeBy: none
+
+      column 'Staging Line Value'
+        dataType: decimal
+        sourceColumn: staging_line_value
+        summarizeBy: none
+        formatString: £#,##0.0000
+
+      column 'Fact Line Value'
+        dataType: decimal
+        sourceColumn: fact_line_value
+        summarizeBy: none
+        formatString: £#,##0.0000
+
+      column 'Line Value Difference'
+        dataType: decimal
+        sourceColumn: line_value_difference
+        summarizeBy: none
+        formatString: £#,##0.0000
+
+      partition Reconciliation = m
+        mode: import
+        source =
+          let
+              Source = PostgreSQL.Database(PBI_Server, PBI_Database, [Query="SELECT * FROM mart.reconciliation_summary"])
+          in
+              Source
+
+    relationship db250ab4-7ef0-456e-98a5-868749b7751b
+      fromColumn: 'Fact Transactions'.'Date Key'
+      toColumn: Date.'Date Key'
+
+    relationship adf87f55-3758-46fc-9ed0-c38c6369a22f
+      fromColumn: 'Fact Transactions'.'Customer Key'
+      toColumn: Customer.'Customer Key'
+
+    relationship 728a3b22-7753-4a81-903e-94b3d5db4523
+      fromColumn: 'Fact Transactions'.'Product Key'
+      toColumn: Product.'Product Key'
+
+    relationship cd7185fe-41ce-4bdb-bf5c-658fe6d0ac6c
+      fromColumn: 'Fact Transactions'.'Geography Key'
+      toColumn: Geography.'Geography Key'

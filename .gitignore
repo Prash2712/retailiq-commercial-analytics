@@ -26,6 +26,10 @@ dist/
 # BI / local outputs
 *.pbix
 *.pbit
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+**/.pbi/unappliedChanges.json
+**/.pbi/tmdlscripts.json
 /reports/generated/
 
 # OS / editors

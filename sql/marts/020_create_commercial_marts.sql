@@ -35,7 +35,7 @@ WITH daily AS (
 SELECT
     *,
     gross_sales_value - cancellation_value AS net_sales_value,
-    gross_sales_value / NULLIF(orders, 0) AS average_order_value
+    (gross_sales_value - cancellation_value) / NULLIF(orders, 0) AS average_order_value
 FROM daily;
 
 CREATE OR REPLACE VIEW mart.customer_summary AS
