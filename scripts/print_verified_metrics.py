@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date, datetime
 from decimal import Decimal
 
 import psycopg
@@ -11,6 +12,8 @@ from psycopg.rows import dict_row
 def json_default(value: object) -> str:
     if isinstance(value, Decimal):
         return str(value)
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
     raise TypeError(f"Cannot serialise {type(value).__name__}")
 
 
