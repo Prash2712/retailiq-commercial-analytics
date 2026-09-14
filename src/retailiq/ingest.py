@@ -63,7 +63,10 @@ def extract_workbook(zip_path: Path, raw_dir: Path) -> Path:
     with zipfile.ZipFile(zip_path) as archive:
         candidates = [name for name in archive.namelist() if name.lower().endswith(".xlsx")]
         if len(candidates) != 1:
-            raise ValueError(f"Expected exactly one .xlsx file in source archive; found {candidates}")
+            raise ValueError(
+                "Expected exactly one .xlsx file in source archive; "
+                f"found {candidates}"
+            )
         member = candidates[0]
         archive.extract(member, raw_dir)
 
