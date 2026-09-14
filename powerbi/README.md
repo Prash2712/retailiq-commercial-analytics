@@ -48,7 +48,7 @@ retailiq warehouse-build
 2. Confirm reconciliation:
 
 ```bash
-retailiq warehouse-reconcile
+retailiq reconcile
 ```
 
 Expected full-source reconciliation is documented in `../docs/verified_results.md`.
