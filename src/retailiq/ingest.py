@@ -98,6 +98,7 @@ def normalise_sheet(frame: pd.DataFrame, source_sheet: str) -> pd.DataFrame:
     output["unit_price"] = pd.to_numeric(output["unit_price"], errors="coerce")
     output["invoice_date"] = pd.to_datetime(output["invoice_date"], errors="coerce")
     output["source_sheet"] = source_sheet
+    output["source_row_number"] = range(2, len(output) + 2)
     output["is_cancellation"] = output["invoice_no"].str.upper().str.startswith("C", na=False)
     output["line_value"] = output["quantity"] * output["unit_price"]
     return output
