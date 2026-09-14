@@ -26,6 +26,7 @@ def test_normalise_sheet_maps_legacy_online_retail_columns() -> None:
     assert bool(result.loc[1, "is_cancellation"]) is False
     assert result.loc[0, "line_value"] == -83.4
     assert set(result["source_sheet"]) == {"Year 2009-2010"}
+    assert result["source_row_number"].tolist() == [2, 3]
 
 
 def test_normalise_sheet_fails_loudly_on_schema_drift() -> None:
