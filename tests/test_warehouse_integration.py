@@ -61,7 +61,8 @@ def test_warehouse_build_reconciles_and_populates_commercial_marts(tmp_path) -> 
                 SUM(gross_sales_value),
                 SUM(cancellation_value),
                 SUM(net_sales_value),
-                SUM(orders)
+                SUM(orders),
+                MAX(average_order_value)
             FROM mart.daily_commercial_performance
             """
         ).fetchone()
@@ -72,6 +73,12 @@ def test_warehouse_build_reconciles_and_populates_commercial_marts(tmp_path) -> 
             "SELECT COUNT(*) FROM mart.customer_summary"
         ).fetchone()[0]
 
-    assert commercial == (Decimal("85.0000"), Decimal("10.0000"), Decimal("75.0000"), 3)
+    assert commercial == (
+        Decimal("85.0000"),
+        Decimal("10.0000"),
+        Decimal("75.0000"),
+        3,
+        Decimal("25.0000000000000000"),
+    )
     assert repeated_rows == 1
     assert customer_count == 2
