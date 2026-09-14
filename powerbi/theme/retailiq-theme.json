@@ -1,0 +1,57 @@
+{
+  "name": "RetailIQ Executive",
+  "dataColors": [
+    "#17324D",
+    "#2F5D7C",
+    "#4F7C98",
+    "#7B9FB4",
+    "#A8C0CD",
+    "#D5E1E7",
+    "#8A5A44",
+    "#B87A5B"
+  ],
+  "background": "#F7F8FA",
+  "foreground": "#1B1F24",
+  "tableAccent": "#2F5D7C",
+  "good": "#2E6B57",
+  "neutral": "#8A6D3B",
+  "bad": "#A33A3A",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "title": [
+          {
+            "fontFamily": "Segoe UI",
+            "fontSize": 12,
+            "fontColor": {"solid": {"color": "#1B1F24"}}
+          }
+        ],
+        "background": [
+          {
+            "show": true,
+            "color": {"solid": {"color": "#FFFFFF"}},
+            "transparency": 0
+          }
+        ],
+        "border": [
+          {
+            "show": true,
+            "color": {"solid": {"color": "#E3E7EB"}},
+            "radius": 4
+          }
+        ]
+      }
+    },
+    "card": {
+      "*": {
+        "labels": [
+          {
+            "fontFamily": "Segoe UI Semibold",
+            "fontSize": 24,
+            "color": {"solid": {"color": "#17324D"}}
+          }
+        ]
+      }
+    }
+  }
+}
