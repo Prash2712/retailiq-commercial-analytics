@@ -6,6 +6,8 @@ from retailiq.quality import profile_quality
 def test_profile_quality_counts_expected_exceptions() -> None:
     frame = pd.DataFrame(
         {
+            "source_sheet": ["sheet-a", "sheet-a", "sheet-b"],
+            "source_row_number": [2, 3, 99],
             "invoice_no": ["1", "C2", "C2"],
             "stock_code": ["A", "B", "B"],
             "description": ["Item A", None, None],
@@ -13,6 +15,7 @@ def test_profile_quality_counts_expected_exceptions() -> None:
             "invoice_date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-02"]),
             "unit_price": [10.0, 0.0, 0.0],
             "customer_id": ["100", None, None],
+            "country": ["United Kingdom", "United Kingdom", "United Kingdom"],
             "is_cancellation": [False, True, True],
         }
     )
