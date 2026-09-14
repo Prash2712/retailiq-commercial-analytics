@@ -4,6 +4,17 @@ from dataclasses import asdict, dataclass
 
 import pandas as pd
 
+BUSINESS_DUPLICATE_COLUMNS = [
+    "invoice_no",
+    "stock_code",
+    "description",
+    "quantity",
+    "invoice_date",
+    "unit_price",
+    "customer_id",
+    "country",
+]
+
 
 @dataclass(frozen=True)
 class QualitySummary:
@@ -28,6 +39,7 @@ def profile_quality(frame: pd.DataFrame) -> QualitySummary:
         "invoice_date",
         "unit_price",
         "customer_id",
+        "country",
         "is_cancellation",
     }
     missing = required.difference(frame.columns)
@@ -36,7 +48,9 @@ def profile_quality(frame: pd.DataFrame) -> QualitySummary:
 
     return QualitySummary(
         row_count=len(frame),
-        exact_duplicate_rows=int(frame.duplicated().sum()),
+        exact_duplicate_rows=int(
+            frame.duplicated(subset=BUSINESS_DUPLICATE_COLUMNS, keep="first").sum()
+        ),
         missing_invoice_no=int(frame["invoice_no"].isna().sum()),
         missing_stock_code=int(frame["stock_code"].isna().sum()),
         missing_description=int(frame["description"].isna().sum()),
